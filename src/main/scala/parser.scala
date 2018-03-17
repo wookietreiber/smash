@@ -8,6 +8,57 @@ sealed abstract class Continuation {
   def parser: P[Result[A]]
 }
 
+object Continuation {
+
+  final case class Consequence(condition: AST.Expression)
+      extends Continuation
+      with SmashBasicParser {
+
+    override type A = AST.Conditional
+
+    // TODO do not require spaces in interactive mode
+    // TODO the cursor is already at the correct position
+    override val parser: P[Result[A]] = P(
+      Spaces ~ Cmd
+    ) map { consequence =>
+      Left(Else(condition, consequence))
+    }
+  }
+
+  final case class Else(condition: AST.Expression, consequence: AST.Expression)
+      extends Continuation
+      with SmashBasicParser {
+
+    override type A = AST.Conditional
+
+    override val parser: P[Result[A]] = P(
+      "else".?.!
+    ) map {
+      case "" =>
+        Right(AST.Conditional(condition, consequence, alternative = None))
+      case "else" =>
+        Left(Alternative(condition, consequence))
+    }
+  }
+
+  final case class Alternative(condition: AST.Expression,
+                               consequence: AST.Expression)
+      extends Continuation
+      with SmashBasicParser {
+
+    override type A = AST.Conditional
+
+    // TODO do not require spaces in interactive mode
+    // TODO the cursor is already at the correct position
+    override val parser: P[Result[A]] = P(
+      Spaces ~ Cmd
+    ) map { alternative =>
+      Right(AST.Conditional(condition, consequence, Some(alternative)))
+    }
+  }
+
+}
+
 // TODO if parser encounters \r or \t: print:
 // TODO you are using tabs / windows newlines, the force is not with you
 class SmashParser extends SmashBasicParser {
@@ -26,13 +77,19 @@ class SmashParser extends SmashBasicParser {
   // --------------------------------------------------------------------------
 
   val Main: P[Result[AST]] = P(
-    Comment | Command | Empty
+    Comment | Conditional | Command | Empty
   )
 
   val Command: P[Result[AST.Command]] = P(
     Cmd
   ) map { cmd =>
     Right(cmd)
+  }
+
+  val Conditional: P[Result[AST.Conditional]] = P(
+    "if" ~ Space ~ Cmd
+  ) map { condition =>
+    Left(Continuation.Consequence(condition))
   }
 
   val Comment: P[Result[AST.Comment]] = P(

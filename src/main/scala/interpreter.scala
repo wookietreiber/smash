@@ -48,6 +48,13 @@ abstract class Interpreter extends Expand {
         case name =>
           Command(name).execute(args, in, out, err)
       }
+
+    case AST.Conditional(condition, consequence, alternative) =>
+      if (eval(condition) == 0) {
+        eval(consequence)
+      } else {
+        alternative.fold(0)(eval)
+      }
   }
 
 }
