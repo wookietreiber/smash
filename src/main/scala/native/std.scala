@@ -12,6 +12,15 @@ import scalanative.native._
 object std {
 
   /** @group contribute */
+  def execvp(file: CString, args: Ptr[CString]): CInt = extern
+
+  /** @group contribute */
   def get_current_dir_name(): CString = extern
+
+  /** @group contribute */
+  def wait(wstatus: Ptr[CInt]): CInt = extern
+
+  /** @group contribute */
+  def waitpid(pid: CInt, wstatus: Ptr[CInt], options: CInt): CInt = extern
 
 }

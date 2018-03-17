@@ -1,5 +1,14 @@
 # The SMASH Shell
 
+## What Works
+
+### Builtins
+
+- `cd`
+- `echo`
+- `exit`
+- `pwd`
+
 ## Thanks
 
 These were some very helpful posts.

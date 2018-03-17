@@ -12,6 +12,41 @@ object ParserTests extends TestSuite {
       assert(ast == AST.Empty)
     }
 
+    'cmd - {
+      val Parsed.Success(Right(ast), _) = parser.Line.parse("echo")
+      assert(ast == AST.Command("echo"))
+    }
+
+    'cmdargs - {
+      val Parsed.Success(Right(ast), _) =
+        parser.Line.parse("cp -a README.md $HOME")
+      assert(
+        ast == AST.Command(
+          AST.Argument.Plain("cp"),
+          List(
+            AST.Argument.Plain("-a"),
+            AST.Argument.Plain("README.md"),
+            AST.Argument.Var("HOME", braces = false)
+          )
+        )
+      )
+    }
+
+    'quot - {
+      val Parsed.Success(Right(ast), _) =
+        parser.Line.parse("""echo $HOME "$HOME" '$HOME'""")
+      assert(
+        ast == AST.Command(
+          AST.Argument.Plain("echo"),
+          List(
+            AST.Argument.Var("HOME", braces = false),
+            AST.Argument.DoubleVar("HOME", braces = false),
+            AST.Argument.Single("$HOME")
+          )
+        )
+      )
+    }
+
     'comment1 - {
       val Parsed.Success(Right(ast), _) = parser.Line.parse("#")
       assert(ast == AST.Comment("#"))

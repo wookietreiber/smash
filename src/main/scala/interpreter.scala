@@ -12,6 +12,9 @@ abstract class Interpreter extends Expand {
     val p = cont.fold(parser.Line)(_.parser)
 
     p.parse(line) match {
+      case Parsed.Success(Right(ast: AST.Expression), index) =>
+        Right(Some(eval(ast)))
+
       case Parsed.Success(Left(continuation), index) =>
         Left(continuation)
 
@@ -23,6 +26,21 @@ abstract class Interpreter extends Expand {
         Console.err.println(failure)
         Right(None)
     }
+  }
+
+  final def eval(ast: AST.Expression): Int = ast match {
+    case AST.Command(name, arguments, redirection) =>
+      val cmd: String = expand(name)
+
+      val args: List[String] = arguments.map(expand)
+
+      cmd match {
+        case Builtin(b) =>
+          b.execute(args)
+
+        case name =>
+          Command(name).execute(args)
+      }
   }
 
 }
@@ -133,4 +151,5 @@ object Interpreter {
       last
     }
   }
+
 }
