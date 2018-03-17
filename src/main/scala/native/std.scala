@@ -18,6 +18,9 @@ object std {
   def get_current_dir_name(): CString = extern
 
   /** @group contribute */
+  def mkstemp(template: CString): CInt = extern
+
+  /** @group contribute */
   def wait(wstatus: Ptr[CInt]): CInt = extern
 
   /** @group contribute */

@@ -17,7 +17,8 @@ import scalanative.posix
  */
 
 sealed abstract class Builtin(val name: String) {
-  def execute(arguments: List[String]): Int
+  // TODO should also have environment/vars as implicit argument
+  def execute(arguments: List[String], streams: Streams): Int
 }
 
 object Builtin {
@@ -29,7 +30,9 @@ object Builtin {
     builtins.get(name)
 
   case object cd extends Builtin("cd") {
-    def execute(path: String): Int = Zone { implicit Z =>
+    def execute(path: String, streams: Streams): Int = Zone { implicit Z =>
+      import streams._
+
       val dir = toCString(path)
 
       val old = native.std.get_current_dir_name()
@@ -37,22 +40,23 @@ object Builtin {
       val ret = if (posix.unistd.chdir(dir) == -1) {
         errno.errno match {
           case e if e == posix.errno.ENOENT =>
-            Console.err.println(
+            err.println(
               s"$name: $path: this is not the directory you are looking for"
             )
 
           case e if e == posix.errno.ENOTDIR =>
-            Console.err.println(
+            err.println(
               s"$name: $path: only Chuck Norris can chdir here"
             )
 
           case e if e == posix.errno.EACCES =>
-            Console.err.println(
+            err.println(
               s"$name: $path: you are just a padawan"
             )
 
           case errno =>
-            stdio.perror(toCString(s"${BuildInfo.name}: $name: $path"))
+            val msg = fromCString(string.strerror(errno))
+            err.println(s"${BuildInfo.name}: $name: $path $msg")
         }
         1
       } else {
@@ -68,64 +72,78 @@ object Builtin {
       ret
     }
 
-    def execute(arguments: List[String]): Int = arguments match {
-      case Nil | List("~") =>
-        execute(fromCString(stdlib.getenv(c"HOME")))
+    def execute(arguments: List[String], streams: Streams): Int =
+      arguments match {
+        case Nil | List("~") =>
+          execute(fromCString(stdlib.getenv(c"HOME")), streams)
 
-      case List("-") =>
-        execute(fromCString(stdlib.getenv(c"OLDPWD")))
+        case List("-") =>
+          execute(fromCString(stdlib.getenv(c"OLDPWD")), streams)
 
-      case List(path) =>
-        execute(path)
+        case List(path) =>
+          execute(path, streams)
 
-      case _ =>
-        Console.err.println(s"${BuildInfo.name}: ${name}: too many arguments")
-        1
-    }
+        case _ =>
+          streams.err.println(
+            s"${BuildInfo.name}: ${name}: too many arguments")
+          1
+      }
   }
 
   case object echo extends Builtin("echo") {
-    def execute(arguments: List[String]): Int = {
-      println(arguments.mkString(" "))
+    def execute(arguments: List[String], streams: Streams): Int = {
+      streams.out.println(arguments.mkString(" "))
       0
     }
   }
 
   case object exit extends Builtin("exit") {
-    def execute(arguments: List[String]): Int = arguments match {
-      case Nil =>
-        // TODO should use exit status of previous command
-        // TODO check $?
-        scala.sys.exit(0)
+    def execute(arguments: List[String], streams: Streams): Int = {
+      import streams._
 
-      case List(code) =>
-        util.Try(code.toInt).toOption.filter(_ >= 0).filter(_ <= 255) match {
-          case Some(code) =>
-            scala.sys exit code
-          case None =>
-            Console.err.println(
-              s"${BuildInfo.name}: ${name}: not a valid number")
-            1
-        }
+      val ret = arguments match {
+        case Nil =>
+          // TODO should use exit status of previous command
+          // TODO check $?
+          scala.sys.exit(0)
 
-      case _ =>
-        Console.err.println(s"${BuildInfo.name}: ${name}: too many arguments")
-        1
+        case List(code) =>
+          // TODO this should be checked in parser
+          util.Try(code.toInt).toOption.filter(_ >= 0).filter(_ <= 255) match {
+            case Some(code) =>
+              scala.sys exit code
+            case None =>
+              err.println(s"${BuildInfo.name}: ${name}: not a valid number")
+              1
+          }
+
+        case _ =>
+          err.println(s"${BuildInfo.name}: ${name}: too many arguments")
+          1
+      }
+
+      ret
     }
   }
 
   case object pwd extends Builtin("pwd") {
-    def execute(arguments: List[String]): Int = arguments match {
-      case Nil =>
-        val wd = native.std.get_current_dir_name()
-        val dir = fromCString(wd)
-        Console.out.println(s"$dir")
-        stdlib.free(wd)
-        0
+    def execute(arguments: List[String], streams: Streams): Int = {
+      import streams._
 
-      case _ =>
-        Console.err.println(s"${BuildInfo.name}: ${name}: too many arguments")
-        1
+      val ret = arguments match {
+        case Nil =>
+          val wd = native.std.get_current_dir_name()
+          val dir = fromCString(wd)
+          out.println(s"$dir")
+          stdlib.free(wd)
+          0
+
+        case _ =>
+          err.println(s"${BuildInfo.name}: ${name}: too many arguments")
+          1
+      }
+
+      ret
     }
   }
 

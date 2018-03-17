@@ -34,12 +34,19 @@ abstract class Interpreter extends Expand {
 
       val args: List[String] = arguments.map(expand)
 
+      val (in, out, err) = redirection map { redir =>
+        expand(redir.argument) -> redir.append
+      }
+
       cmd match {
         case Builtin(b) =>
-          b.execute(args)
+          val s = Streams(in, out, err)
+          val ret = b.execute(args, s)
+          s.close()
+          ret
 
         case name =>
-          Command(name).execute(args)
+          Command(name).execute(args, in, out, err)
       }
   }
 

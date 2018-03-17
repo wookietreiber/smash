@@ -56,10 +56,14 @@ trait SmashBasicParser {
   // --------------------------------------------------------------------------
 
   val Cmd: P[AST.Command] = P(
-    Argument ~ (Space ~ Arguments).?
+    Argument ~ (Space ~ Arguments).? ~ (Space ~ Redirection).?
   ) map {
-    case (name, args) =>
-      AST.Command(name, args.getOrElse(Nil))
+    case (name, args, redirection) =>
+      AST.Command(
+        name,
+        args.getOrElse(Nil),
+        redirection.getOrElse(AST.Redirection())
+      )
   }
 
   val Argument: P[AST.Argument] = P(
@@ -112,6 +116,44 @@ trait SmashBasicParser {
     Identifier.!
   ) map { name =>
     AST.Part.Var(name, braces = false)
+  }
+
+  val Redirection: P[AST.Redirection] = P(
+    ((">>" | "2>>" | "&>>" | "<" | ">" | "2>" | "&>").! ~ Space ~ Argument)
+      .rep(min = 1, sep = " ")
+  ) map { rs =>
+    val xs = rs map {
+      _ match {
+        case ("<", argument) =>
+          AST.Redirection(in = Some(AST.Redir(argument, append = false)))
+
+        case (">", argument) =>
+          AST.Redirection(out = Some(AST.Redir(argument, append = false)))
+
+        case ("2>", argument) =>
+          AST.Redirection(err = Some(AST.Redir(argument, append = false)))
+
+        case ("&>", argument) =>
+          val r = Some(AST.Redir(argument, append = false))
+          AST.Redirection(out = r, err = r)
+
+        case (">>", argument) =>
+          AST.Redirection(out = Some(AST.Redir(argument, append = true)))
+
+        case ("2>>", argument) =>
+          AST.Redirection(err = Some(AST.Redir(argument, append = true)))
+
+        case ("&>>", argument) =>
+          val r = Some(AST.Redir(argument, append = true))
+          AST.Redirection(out = r, err = r)
+      }
+    }
+
+    xs.foldLeft(AST.Redirection()) { (acc, r) =>
+      acc.copy(in = r.in orElse acc.in,
+               out = r.out orElse acc.out,
+               err = r.err orElse acc.err)
+    }
   }
 
   // --------------------------------------------------------------------------

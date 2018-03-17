@@ -13,12 +13,30 @@ object AST {
   final case class Command(
       name: Argument,
       arguments: List[Argument] = Nil,
-      redirection: List[Int] = Nil
+      redirection: Redirection = Redirection()
   ) extends Expression
 
   object Command {
     def apply(name: String): Command =
       new Command(Argument.Plain(name))
+
+    def redir(name: String, r: Redirection = Redirection()): Command =
+      new Command(Argument.Plain(name), redirection = r)
+  }
+
+  // --------------------------------------------------------------------------
+  // redirection
+  // --------------------------------------------------------------------------
+
+  final case class Redir(argument: Argument, append: Boolean)
+
+  final case class Redirection(
+      in: Option[Redir] = None,
+      out: Option[Redir] = None,
+      err: Option[Redir] = None
+  ) {
+    def map[A](f: Redir => A): (Option[A], Option[A], Option[A]) =
+      (in.map(f), out.map(f), err.map(f))
   }
 
   // --------------------------------------------------------------------------

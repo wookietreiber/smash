@@ -9,6 +9,58 @@
 - `exit`
 - `pwd`
 
+### Redirection
+
+```
+cmd  > file
+cmd 2> file
+cmd &> file
+
+cmd  >> file
+cmd 2>> file
+cmd &>> file
+
+meansd < numbers
+```
+
+## Simplification / Linter
+
+### Merge Argument Parts
+
+```
+# from
+echo ${HOME}/foo'$bar_'"baz"
+
+# to (keep slash)
+echo ${HOME}/'foo$bar_baz'
+
+# or (don't keep slash)
+echo ${HOME}'/foo$bar_baz'
+
+## maybe separator list that aren't merged
+```
+
+## variable filters like jinja
+
+instead of:
+
+```
+echo $foo | ??? | md5
+```
+
+use this (looks weird though in shell):
+
+```
+{{ foo | default('42') | md5 }}
+```
+
+maybe one of:
+
+```
+${  foo | default('42') | md5  }
+$(( foo | default('42') | md5 ))
+```
+
 ## Thanks
 
 These were some very helpful posts.
