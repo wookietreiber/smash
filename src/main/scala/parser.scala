@@ -57,6 +57,21 @@ object Continuation {
     }
   }
 
+  final case class While(condition: AST.Expression)
+      extends Continuation
+      with SmashBasicParser {
+
+    override type A = AST.While
+
+    // TODO do not require spaces in interactive mode
+    // TODO the cursor is already at the correct position
+    override val parser: P[Result[A]] = P(
+      Spaces ~ Cmd
+    ) map { body =>
+      Right(AST.While(condition, body))
+    }
+  }
+
 }
 
 // TODO if parser encounters \r or \t: print:
@@ -77,7 +92,7 @@ class SmashParser extends SmashBasicParser {
   // --------------------------------------------------------------------------
 
   val Main: P[Result[AST]] = P(
-    Comment | Conditional | Command | Empty
+    Comment | Conditional | While | Command | Empty
   )
 
   val Command: P[Result[AST.Command]] = P(
@@ -90,6 +105,12 @@ class SmashParser extends SmashBasicParser {
     "if" ~ Space ~ Cmd
   ) map { condition =>
     Left(Continuation.Consequence(condition))
+  }
+
+  val While: P[Result[AST.While]] = P(
+    "while" ~ Space ~ Cmd
+  ) map { condition =>
+    Left(Continuation.While(condition))
   }
 
   val Comment: P[Result[AST.Comment]] = P(
@@ -228,7 +249,16 @@ trait SmashBasicParser {
 
   val Symbol = P(CharIn("./-_=+~"))
 
-  val keywords = Set("case", "def", "else", "for", "if", "match", "then")
+  val keywords = Set(
+    "case",
+    "def",
+    "else",
+    "for",
+    "if",
+    "match",
+    "then",
+    "while"
+  )
 
   val Identifier =
     P((Letter | Underscore) ~ (Letter | Digit | Underscore).rep).! filter {

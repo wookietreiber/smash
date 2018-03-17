@@ -49,6 +49,11 @@ object AST {
       alternative: Option[Expression]
   ) extends Expression
 
+  final case class While(
+      condition: Expression,
+      body: Expression
+  ) extends Expression
+
   // --------------------------------------------------------------------------
   // arguments
   // --------------------------------------------------------------------------

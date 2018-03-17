@@ -55,6 +55,13 @@ abstract class Interpreter extends Expand {
       } else {
         alternative.fold(0)(eval)
       }
+
+    case AST.While(condition, body) =>
+      var exit = 0
+      while (eval(condition) == 0) {
+        exit = eval(body)
+      }
+      exit
   }
 
 }
